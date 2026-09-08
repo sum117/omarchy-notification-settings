@@ -194,7 +194,12 @@ function snapshotOf(notification, timestamp) {
   var glyph = sanitizeText(glyphFromHints(n.hints), MAX_GLYPH_CHARS)
   var channel = sanitizeText(extractChannel(app, summary, body, n.hints), MAX_CHANNEL_CHARS)
   var appIcon = validateImageSource(n.appIcon)
-  var image = validateImageSource(n.image)
+  var rawImage = String(n.image || "")
+  var imagePath = stringHint(n.hints, "image-path") || stringHint(n.hints, "image_path")
+  // Quickshell wraps image-path hints in an icon provider that returns a
+  // checkerboard for missing files. Keep the original path so normal image
+  // errors can advance to an app-logo fallback and history can retain it.
+  var image = validateImageSource(rawImage.indexOf("image://icon/") === 0 && imagePath ? imagePath : rawImage)
 
   var ts = Number(timestamp === undefined ? Date.now() : timestamp)
   if (!isFinite(ts) || ts <= 0) ts = Date.now()
@@ -203,6 +208,7 @@ function snapshotOf(notification, timestamp) {
     id: id,
     originalId: id,
     app: app,
+    desktopEntry: sanitizeText(stringHint(n.hints, "desktop-entry"), 256),
     appIcon: appIcon,
     summary: summary,
     body: body,
@@ -217,7 +223,7 @@ function snapshotOf(notification, timestamp) {
 
 // Everything the popup card draws, and therefore everything an in-place
 // update has to write through to the row and its file.
-var POPUP_ROLES = ["app", "appIcon", "summary", "body", "image", "glyph", "channel", "urgency", "expireTimeout"]
+var POPUP_ROLES = ["app", "desktopEntry", "appIcon", "summary", "body", "image", "glyph", "channel", "urgency", "expireTimeout"]
 
 function popupRoles() {
   return POPUP_ROLES
@@ -259,6 +265,7 @@ function historyEntry(value, normalUrgency) {
     id: isFinite(id) ? id : 0,
     originalId: isFinite(originalId) ? originalId : 0,
     app: sanitizeText(e.app, MAX_APP_CHARS),
+    desktopEntry: sanitizeText(e.desktopEntry, 256),
     appIcon: validateImageSource(e.appIcon),
     summary: sanitizeText(e.summary, MAX_SUMMARY_CHARS),
     body: sanitizeText(e.body, MAX_BODY_CHARS),
@@ -572,6 +579,22 @@ function extractOtp(summary, body) {
   return null
 }
 
+// Omarchy's own agent-logo assets, selected only by explicit sender identity.
+function officialAgentIconPaths(app, basePath, lightSurface) {
+  var name = String(app || "").trim().toLowerCase()
+  var agents = {
+    "codex": "codex", "openai codex": "codex", "com.openai.codex": "codex",
+    "claude": "claude", "claude code": "claude", "fireworks": "fireworks"
+  }
+  var id = agents[name]
+  if (!id || !basePath) return []
+  var base = String(basePath).replace(/\/$/, "") + "/shell/plugins/agents/assets/" + id
+  var paths = []
+  if (lightSurface && id === "codex") paths.push(base + "-light.svg")
+  paths.push(base + ".svg")
+  return paths
+}
+
 // Every search term must occur somewhere in the visible notification text.
 function filterHistory(rows, query) {
   var terms = String(query || "").trim().toLowerCase().split(/\s+/).filter(function(term) { return term.length > 0 })
@@ -584,6 +607,7 @@ function filterHistory(rows, query) {
 if (typeof module !== "undefined") {
   module.exports = {
     filterHistory: filterHistory,
+    officialAgentIconPaths: officialAgentIconPaths,
     isChromiumDerived: isChromiumDerived,
     sanitizeBody: sanitizeBody,
     summaryStartsWithGlyph: summaryStartsWithGlyph,

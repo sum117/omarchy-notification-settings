@@ -48,6 +48,7 @@ ColumnLayout {
     }
     Button {
       text: "Clear history"
+      iconText: "󰅙"
       focusable: true
       foreground: root.foreground
       fontFamily: root.fontFamily
@@ -93,7 +94,7 @@ ColumnLayout {
           color: Qt.darker(root.foreground, 1.4)
         }
         Button {
-          text: "×"
+          iconText: "󰅙"
           tooltipText: "Remove notification"
           focusable: true
           foreground: root.foreground
@@ -105,6 +106,7 @@ ColumnLayout {
       NotificationCard {
         Layout.fillWidth: true
         app: row.modelData.app
+        desktopEntry: row.modelData.desktopEntry || ""
         summary: row.modelData.summary
         body: row.modelData.body
         appIcon: row.modelData.appIcon

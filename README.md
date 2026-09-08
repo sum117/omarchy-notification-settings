@@ -12,6 +12,13 @@ The settings panel uses Omarchy's native themed controls and opens beside the
 clicked bell. Tab navigates controls; Enter/Space activates them, and Escape
 closes the panel. The bell changes to its crossed-out companion when DND is on.
 Notification text follows the shell font, and previews expire automatically.
+Sender images and icons take priority. Missing or expired images fall back to
+the application's desktop-entry icon, or Omarchy's bundled Codex/Claude agent
+logo when the sender identifies itself as that app. Codex logos follow the
+notification surface's light/dark theme. Desktop-entry identity survives in
+history. Native-style glyphs identify history, settings, copy and dismiss
+actions, and previews carry the notification bell.
+
 
 History opens as a searchable, scrolling list inside the panel, including active
 alerts and up to 100 recent archived entries. Search matches app, title, message,
@@ -181,7 +188,8 @@ If you ever wish to switch back to the default Omarchy notification daemon:
 ## Development checks
 
 Run `node tests/panel.test.cjs` and `node tests/history.test.cjs` for panel,
-search, and history identity regressions. On an Omarchy installation, run
+search, and history identity regressions. `node tests/icons.test.cjs` checks
+sender identity, logo selection, and image-path persistence. On an Omarchy installation, run
 `python3 tests/run-card-input.py` to exercise the actual card pointer handlers
 in an isolated offscreen Quickshell instance.
 

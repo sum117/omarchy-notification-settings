@@ -16,6 +16,7 @@ BorderSurface {
   property var actions: []
   signal actionRequested(string identifier)
   property string app: ""
+  property string desktopEntry: ""
   property string appIcon: ""
   property string summary: ""
   property string body: ""
@@ -40,7 +41,10 @@ BorderSurface {
   signal cardClicked()
   // Prefer per-notification media/avatar data, then fall back to the app icon.
   // The `check` flag avoids Qt's missing-texture placeholder for unknown names.
-  readonly property string smallIconSource: image.length > 0 ? NotificationLogic.validateImageSource(image) : iconSource(appIcon)
+  property int iconCandidateIndex: 0
+  readonly property var iconCandidates: resolveIconCandidates()
+  onIconCandidatesChanged: iconCandidateIndex = 0
+  readonly property string smallIconSource: iconCandidateIndex < iconCandidates.length ? iconCandidates[iconCandidateIndex] : ""
   readonly property bool hasGlyph: glyph.length > 0
   readonly property bool compactGlyph: NotificationLogic.shouldRenderCompactGlyph(glyph, smallIconSource, singleLineToast)
   readonly property bool hasSmallIcon: smallIconSource.length > 0
@@ -67,12 +71,43 @@ BorderSurface {
 
   function iconSource(icon) {
     var value = String(icon || "")
+    if (value.indexOf("image://icon/") === 0)
+      return iconSource(value.slice(13).split("?")[0])
     if (value.length === 0) return ""
     var validated = NotificationLogic.validateImageSource(value)
     if (!validated) return ""
     if (validated.indexOf("file://") === 0 || validated.indexOf("image://") === 0) return validated
     if (validated.charAt(0) === "/") return Util.fileUrl(validated)
     return Quickshell.iconPath(validated, true)
+  }
+
+  function resolveIconCandidates() {
+    var candidates = []
+    function add(value) {
+      var source = iconSource(value)
+      if (source && candidates.indexOf(source) < 0) candidates.push(source)
+    }
+    add(root.image)
+    add(root.appIcon)
+
+    // Desktop-entry is the notification protocol's explicit app identity.
+    var entry = null
+    try {
+      if (root.desktopEntry) entry = DesktopEntries.byId(root.desktopEntry.replace(/\.desktop$/, ""))
+      if (entry) add(entry.icon)
+    } catch (e) {}
+
+    function luminance(v) { return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4) }
+    var bg = Color.notifications.background
+    var light = 0.2126 * luminance(bg.r) + 0.7152 * luminance(bg.g) + 0.0722 * luminance(bg.b) >= 0.5
+    var official = NotificationLogic.officialAgentIconPaths(root.app, Quickshell.env("OMARCHY_PATH"), light)
+    for (var i = 0; i < official.length; i++) add(official[i])
+
+    try {
+      if (!entry && root.app) entry = DesktopEntries.heuristicLookup(root.app)
+      if (entry) add(entry.icon)
+    } catch (e) {}
+    return candidates
   }
 
   implicitWidth: Style.space(380)
@@ -135,6 +170,11 @@ BorderSurface {
           id: smallIconImage
           anchors.fill: parent
           source: root.smallIconSource
+          onStatusChanged: {
+            // Expired avatars and missing icon files must not hide the app logo.
+            if (status === Image.Error && root.iconCandidateIndex < root.iconCandidates.length)
+              root.iconCandidateIndex++
+          }
           sourceSize.width: smallIconSlot.width * Screen.devicePixelRatio
           sourceSize.height: smallIconSlot.height * Screen.devicePixelRatio
           fillMode: Image.PreserveAspectFit
@@ -275,6 +315,7 @@ BorderSurface {
         objectName: "dismissNotification"
         visible: !root.expanded
         text: "Dismiss"
+        iconText: "󰅙"
         focusable: true
         fontFamily: root.fontFamily
         onClicked: root.closeRequested()
@@ -305,7 +346,7 @@ BorderSurface {
           spacing: Style.space(6)
 
           Text {
-            text: root.copiedOtp ? "✓" : "📋"
+            text: root.copiedOtp ? "󰄬" : "󰆏"
             textFormat: Text.PlainText
             font.family: root.fontFamily
             font.pixelSize: Style.font.body

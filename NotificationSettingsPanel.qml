@@ -101,6 +101,7 @@ KeyboardPanel {
       Button {
         Layout.fillWidth: true
         text: "History"
+        iconText: "󰋚"
         selected: root.historyView
         bordered: true
         focusable: true
@@ -114,6 +115,7 @@ KeyboardPanel {
       Button {
         Layout.fillWidth: true
         text: "Settings"
+        iconText: "󰒓"
         selected: !root.historyView
         bordered: true
         focusable: true
@@ -265,6 +267,7 @@ KeyboardPanel {
           Button {
             Layout.fillWidth: true
             text: root.previewSent ? "Sent" : "Preview"
+            iconText: root.previewSent ? "󰄬" : "󰂚"
             bordered: true
             focusable: true
             foreground: root.foreground
@@ -282,6 +285,7 @@ KeyboardPanel {
           Button {
             Layout.fillWidth: true
             text: "History"
+            iconText: "󰋚"
             bordered: true
             focusable: true
             foreground: root.foreground
@@ -295,6 +299,7 @@ KeyboardPanel {
           Button {
             Layout.fillWidth: true
             text: "Dismiss all"
+            iconText: "󰅙"
             bordered: true
             focusable: true
             foreground: root.foreground

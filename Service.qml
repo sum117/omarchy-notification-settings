@@ -909,6 +909,7 @@ Item {
     Util.execArgv([
       "notify-send",
       "-a", "omarchy-action",
+      "-h", "string:omarchy-glyph:󰂚",
       "-u", "low",
       "-t", "3000",
       "Notification preview",
@@ -1079,6 +1080,7 @@ Item {
               required property int index
               required property int originalId
               required property string app
+              required property string desktopEntry
               required property string appIcon
               required property string summary
               required property string body
@@ -1131,6 +1133,7 @@ Item {
                 id: card
                 anchors.fill: parent
                 app: cardSlot.app
+                desktopEntry: cardSlot.desktopEntry
                 appIcon: cardSlot.appIcon
                 summary: cardSlot.summary
                 body: cardSlot.body
