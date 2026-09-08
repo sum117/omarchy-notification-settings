@@ -92,12 +92,6 @@ KeyboardPanel {
       target: root.service
       function onOpenHistorySerialChanged() { root.historyView = true }
     }
-    Timer {
-      interval: 1000
-      repeat: true
-      running: root.open && root.historyView
-      onTriggered: if (root.service) root.service.refreshHistory()
-    }
 
     RowLayout {
       id: navigation

@@ -602,6 +602,7 @@ Item {
         }
       }
       service.runNextPopupFileJob()
+      if (service.panelOpenCount > 0) historyRefreshTimer.restart()
     }
   }
 
@@ -676,6 +677,14 @@ Item {
   readonly property bool historyLoading: historyReadQueued || readHistoryProc.running
   property int openHistorySerial: 0
   property int panelOpenCount: 0
+
+  // Coalesce completed persistence changes instead of polling every second.
+  Timer {
+    id: historyRefreshTimer
+    interval: 150
+    repeat: false
+    onTriggered: if (service.panelOpenCount > 0) service.refreshHistory()
+  }
 
   function refreshHistory() {
     if (readHistoryProc.running || historyReadQueued) return

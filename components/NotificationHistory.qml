@@ -13,7 +13,17 @@ ColumnLayout {
   signal activated()
   spacing: Style.spacing.lg
 
-  readonly property var rows: Logic.filterHistory(service ? service.historyEntries : [], search.text)
+  property string searchQuery: ""
+  readonly property var rows: Logic.filterHistory(service ? service.historyEntries : [], searchQuery)
+
+  Timer {
+    id: searchDelay
+    interval: 120
+    onTriggered: {
+      root.searchQuery = search.text
+      list.positionViewAtBeginning()
+    }
+  }
 
   TextField {
     id: search
@@ -22,7 +32,7 @@ ColumnLayout {
     foreground: root.foreground
     font.family: root.fontFamily
     selectByMouse: true
-    onTextChanged: list.positionViewAtBeginning()
+    onTextChanged: searchDelay.restart()
   }
 
   RowLayout {
@@ -30,7 +40,8 @@ ColumnLayout {
     Text {
       Layout.fillWidth: true
       textFormat: Text.PlainText
-      text: root.service && root.service.historyLoading ? "Loading…" : root.rows.length + " notifications"
+      text: root.service && root.service.historyLoading && root.service.historyEntries.length === 0
+        ? "Loading…" : root.rows.length + " notifications"
       font.family: root.fontFamily
       font.pixelSize: Style.font.caption
       color: Qt.darker(root.foreground, 1.4)
@@ -40,9 +51,18 @@ ColumnLayout {
       focusable: true
       foreground: root.foreground
       fontFamily: root.fontFamily
-      tooltipText: "Delete archived notifications; keep active alerts"
       onClicked: if (root.service) root.service.clearHistory()
     }
+  }
+
+  Text {
+    Layout.fillWidth: true
+    textFormat: Text.PlainText
+    text: "Clear history keeps active alerts."
+    font.family: root.fontFamily
+    font.pixelSize: Style.font.caption
+    color: Qt.darker(root.foreground, 1.4)
+    wrapMode: Text.WordWrap
   }
 
   ListView {
@@ -52,6 +72,7 @@ ColumnLayout {
     clip: true
     spacing: Style.spacing.lg
     model: root.rows
+    cacheBuffer: Style.space(400)
     boundsBehavior: Flickable.StopAtBounds
     Controls.ScrollBar.vertical: Controls.ScrollBar {}
 
