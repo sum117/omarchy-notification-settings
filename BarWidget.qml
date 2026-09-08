@@ -15,8 +15,10 @@ BarWidget {
   readonly property bool panelOpen: panelLoader.item ? panelLoader.item.open : false
   readonly property bool revealed: !isCenter || hovered || panelOpen || centerHovered || isDnd
 
-  implicitWidth: revealed ? Style.bar.statusSlot : 0
-  implicitHeight: Style.bar.statusSlot
+  // Match the standard icon slot and full bar height so the glyph shares
+  // the same center and baseline as its neighboring buttons.
+  implicitWidth: revealed ? button.implicitWidth : 0
+  implicitHeight: button.implicitHeight
   visible: true
   clip: true
 
