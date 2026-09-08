@@ -1,135 +1,68 @@
-# 🔔 Omarchy Notifications Settings
+# Omarchy Notifications Settings
 
-This fork fixes settings-panel dismissal (click the bell again, press Escape,
-or click outside) and makes notification badges and OTP buttons follow
-Omarchy's corner setting, including square corners. It also removes tracked
-Python bytecode and ignores generated Python caches.
+A notification service and bar panel for Omarchy's Quickshell-based desktop, with
+searchable history, notification actions, one-click verification-code copying,
+and configurable toast placement.
 
-The plugin ID remains `andrewscofield.notifications-settings` for compatibility
-with existing installations. Upstream: [andrewscofield/omarchy-notification-settings](https://github.com/andrewscofield/omarchy-notification-settings).
+This is [sum117's fork](https://github.com/sum117/omarchy-notification-settings)
+of [Andrew Scofield's plugin](https://github.com/andrewscofield/omarchy-notification-settings),
+which builds on Omarchy's notification service. The plugin ID remains
+`andrewscofield.notifications-settings` for compatibility with existing installs.
 
-The settings panel uses Omarchy's native themed controls and opens beside the
-clicked bell. Tab navigates controls; Enter/Space activates them, and Escape
-closes the panel. The bell changes to its crossed-out companion when DND is on.
-Notification text follows the shell font, and previews expire automatically.
-Sender images and icons take priority. Missing or expired images fall back to
-the application's desktop-entry icon, or Omarchy's bundled Codex/Claude agent
-logo when the sender identifies itself as that app. Codex logos follow the
-notification surface's light/dark theme. Desktop-entry identity survives in
-history. Native-style glyphs identify history, settings, copy and dismiss
-actions, and previews carry the notification bell.
+## Improvements in this fork
 
+- **Native panel:** Omarchy controls, theme colors, shell fonts, and corner settings.
+  The panel opens beside the clicked bell and closes on a second click, Escape,
+  or a click outside. Controls support keyboard navigation.
+- **History inside the panel:** A searchable, scrolling list combines active alerts
+  with up to 100 recent archived entries. Search matches application, title,
+  message, and channel. Viewing history does not replay desktop toasts.
+- **Interactive toasts:** Card-sized Wayland surfaces make dismissal, code copying,
+  and application actions clickable. Long stacks scroll within the screen.
+- **Reliable actions:** Live cards expose the sender's action buttons. Archived
+  entries can focus an existing application window; expired callbacks are not
+  replayed. Notification identity checks keep older entries from acting on a
+  newer notification that reuses the same ID.
+- **Smoother history updates:** Updates follow storage changes and preserve unchanged
+  lists. Search is debounced, and clear-history help stays inside the panel.
+- **Sender icons and consistent controls:** Sender images take priority, with desktop
+  icons and Omarchy's bundled agent logos as fallbacks. Application identity is
+  preserved in history, and Codex logos adapt to the notification theme. History,
+  settings, copy, and dismissal controls use Nerd Font glyphs; search stays plain.
+- **Regression coverage and repository cleanup:** Tests cover panel dismissal,
+  history identity, icon selection, and card input. Generated Python caches are
+  excluded from version control.
 
-History opens as a searchable, scrolling list inside the panel, including active
-alerts and up to 100 recent archived entries. Search matches app, title, message,
-and channel. Right-click an entry or use × to remove it. Clear history removes
-archived entries while keeping active alerts. Reading history never replays
-notifications onto the desktop. Desktop toasts are hidden while this panel is
-open, so its full-screen dismissal surface cannot intercept their controls.
+## Features
 
-Live notifications expose the sending app's action buttons. Clicking the card
-runs its default action, or focuses the app if no default action is available.
-Archived notifications can only focus an existing app window; expired action
-callbacks cannot be replayed. Right-clicking a toast (including its code-copy
-button) dismisses it, and a visible Dismiss button is also available.
-Toast windows fit their visible cards and use the native Wayland input region;
-they do not rely on a full-screen click-through mask. Long stacks scroll within
-the available screen height.
+The plugin retains the original configurable six toast positions, notification
+grouping by channel or application, channel badges, display-duration choices,
+sticky chat alerts, Do Not Disturb, notification previews, verification-code
+extraction, and persistent notification state.
 
+## Requirements
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Omarchy Quattro](https://img.shields.io/badge/Omarchy-Quattro-blue)](https://omarchy.com)
+- Omarchy with its Quickshell shell and native plugin UI components
+- Python 3 for notification storage
+- `wl-clipboard` for copying verification codes
+- `libnotify` for previews (`notify-send`)
+- Omarchy's configured Nerd Font for interface glyphs
 
-A high-performance, feature-packed notification daemon, status bar control panel, and UI replacement for Omarchy Quattro (Quickshell).
+This plugin uses Omarchy's installed controls and assets; it is not a standalone
+Quickshell configuration. Only one notification service can own the session's
+`org.freedesktop.Notifications` D-Bus name.
 
-Provides seamless 1-click 2FA/OTP code copying, 6 flexible screen positions, smart channel/conversation grouping, persistent chat alerts, live preview tester, and a hardened zero-trust persistence and rendering architecture.
+## Install
 
----
-
-## ✨ Features
-
-- 🎛️ **Dedicated Bar Widget & Control Panel:**
-  - Placed anywhere on your status bar (`left`, `center`, or `right`).
-  - When placed in the center section, it seamlessly reveals on hover alongside your other utility indicators.
-  - Left-click opens the configuration popup; right-click quickly toggles **Do Not Disturb** mode.
-- 📋 **Automatic 2FA / OTP Code Extraction & 1-Click Copy:**
-  - Automatically parses incoming verification notifications (Google, GitHub, Slack, Signal, Steam, Discord, banks, and more) for one-time passcodes and security tokens.
-  - Automatically strips service prefixes (e.g. `G-492019` becomes pure `492019`) so you copy only the numbers you need to enter.
-  - Injects a native, prominent **"Copy Code: XXXXXX"** button directly on the notification card.
-  - Copies directly to your Wayland clipboard via `wl-copy` with instant visual confirmation (`✓ Copied to Clipboard!`).
-- 📐 **6 Dynamic Screen Positions:**
-  - Easily place notification toasts anywhere on your screen:
-    - **Top Left**, **Top Center**, **Top Right**
-    - **Bottom Left**, **Bottom Center**, **Bottom Right**
-  - Card alignment, stacking order, and status bar clearance adjust automatically.
-- 🗂️ **Smart Notification Grouping:**
-  - **1 Per Channel (Default):** Keeps at most 1 active alert per channel or conversation (e.g. messages in `#dev` and `#general` stay separate, but rapid posts in `#dev` won't flood your screen).
-  - **1 Per App:** Keeps 1 alert per application total (newer alerts from the same app supersede older ones).
-  - **All Alerts:** Displays all incoming notifications without deduplication.
-- 🏷️ **Conversation & Channel Badges:**
-  - Automatically identifies channels and groups from DBus hints (`tag`, `x-kde-tag`, `group`) and title syntax.
-  - Displays a clean accent-colored breadcrumb badge (`Slack · [ #dev ]`) right on the card.
-- ⏱️ **Configurable Display Timeouts:**
-  - Choose auto-dismiss timing: **3s**, **5s**, **8s**, **12s**, or **15s**.
-- 💬 **Sticky Chat Alerts:**
-  - Messaging apps like **Slack** and **Signal** stay visible until dismissed so you never miss urgent communications.
-- 👁️ **Live Notification Preview:**
-  - One-click **"Preview Notification Toast"** button inside the settings panel lets you immediately test your active position, duration, grouping, and OTP copy button in real time.
-- 💾 **Session Resilience & History:**
-  - Survives shell reloads and restarts, restoring live popups without duplicating expired toasts. Replay recent notifications at any time.
-
----
-
-## 🔒 Security & Hardened Architecture
-
-This plugin adheres to strict security and privilege boundary standards:
-
-1. **No Executable Payload Data:**
-   - Arbitrary command execution hints (such as `omarchy-exec`) have been completely removed.
-   - Notification cards never execute shell commands when clicked. Standard client callbacks use the native FreeDesktop `default` action invoked over DBus within the originating client's process boundary.
-2. **Hard Producer-Side Field & Cardinality Bounds:**
-   - String inputs are capped before entering QML (`app` <= 64B, `summary` <= 256B, `body` <= 2048B, `glyph` <= 8B, `channel` <= 64B, `appIcon` <= 256B, `image` <= 512B).
-   - Dangerous ASCII control characters are stripped.
-   - Active toast cardinality is capped to a maximum of 20 concurrent popups (`maxActivePopups = 20`) to prevent UI resource exhaustion.
-3. **Hardened Text Sinks:**
-   - All text sinks in `NotificationCard.qml` explicitly specify `textFormat: Text.PlainText`. Default `AutoText` and `StyledText` markup rendering are disabled, eliminating HTML/rich-text injection vectors.
-4. **Strict Image Scheme Allowlist:**
-   - App icons and images are verified before loading: only local files (`file:///` or `/`), in-process `image://` providers, or standard themed icon names are permitted.
-   - Remote URL schemes (`http://`, `https://`, `data:`, `qrc:`, etc.) and path traversal sequences (`..`) are strictly rejected.
-5. **Private Descriptor & Atomic State Persistence (`scripts/storage.sh`):**
-   - Verified private directories (`~/.local/state/omarchy/notifications/`, `history/`, `images/`) are initialized with mode `0700` (`umask 077`) and verified not to be symlinks.
-   - Notification and settings writes use exclusive temporary files in the same directory (`0600`) followed by atomic rename (`mv -f`).
-   - Bounded reads (`head -c 32768`) reject symlinks (`! -L`) and enforce strict timestamp-id filename matching (`^[0-9]+-[0-9]+\.json$`).
-
----
-
-## 📦 Dependencies
-
-All dependencies are standard in default Omarchy installations:
-- **Quickshell** (included in Omarchy Quattro)
-- **wl-clipboard** (`wl-copy` for 1-click OTP clipboard copying)
-- **libnotify** (`notify-send` for preview simulations)
-- **Nerd Font** (system icon glyphs)
-
----
-
-## 🚀 Replacement Notification Server Setup
-
-Because only one service can own the `org.freedesktop.Notifications` DBus session name at a time, this plugin acts as a **complete drop-in replacement** for the built-in `omarchy.notifications` service.
-
-### 1. Installation
-
-Clone this repository into your Omarchy plugins directory:
+Clone the fork into the directory matching its plugin ID:
 
 ```bash
 git clone https://github.com/sum117/omarchy-notification-settings.git ~/.config/omarchy/plugins/andrewscofield.notifications-settings
 ```
 
-### 2. Enable in Shell Configuration
-
-Edit `~/.config/omarchy/shell.json`:
-- Add `"andrewscofield.notifications-settings"` to `"plugins"`
-- Add `"omarchy.notifications"` to `"disabledPlugins"` (disables stock daemon so this plugin claims DBus `org.freedesktop.Notifications`)
+Merge the following entries into `~/.config/omarchy/shell.json`, preserving your
+other plugins and bar items. Register this service, disable the stock service,
+and add the bell to your preferred bar section. This example places it on the right:
 
 ```json
 {
@@ -138,61 +71,103 @@ Edit `~/.config/omarchy/shell.json`:
   ],
   "disabledPlugins": [
     "omarchy.notifications"
-  ]
-}
-```
-
-### 3. Add to Bar Layout (Optional)
-
-To place the notification bell directly in your bar, add it to `bar.layout` in `~/.config/omarchy/shell.json`:
-
-```json
-{
+  ],
   "bar": {
     "layout": {
-      "center": [
-        { "id": "andrewscofield.notifications-settings" },
-        { "id": "omarchy.clock" }
+      "right": [
+        { "id": "andrewscofield.notifications-settings" }
       ]
     }
   }
 }
 ```
 
-*(Note: If you use `andrew.indicators`, the DND indicator can also directly trigger the settings panel).*
-
-### 4. Restart Shell
-
-Restart Omarchy Quattro to activate the replacement notification daemon:
+Restart the shell:
 
 ```bash
 omarchy restart shell
 ```
 
----
+For an existing installation cloned from Andrew's repository, switch its remote
+to this fork before updating:
 
-## 🔄 Reverting to Stock Notifications
+```bash
+git -C ~/.config/omarchy/plugins/andrewscofield.notifications-settings remote set-url origin https://github.com/sum117/omarchy-notification-settings.git
+```
 
-If you ever wish to switch back to the default Omarchy notification daemon:
+## Use
 
-1. In `~/.config/omarchy/shell.json`:
-   - Remove `"omarchy.notifications"` from `"disabledPlugins"`
-   - Remove `"andrewscofield.notifications-settings"` from `"plugins"` and `"bar.layout"`
-2. Restart the shell:
-   ```bash
-   omarchy restart shell
-   ```
+- **Bell:** Left-click opens history and settings. Right-click toggles DND; the bell
+  changes to a crossed-out glyph while DND is enabled.
+- **History:** Search notifications, then right-click an entry or use its remove
+  button to dismiss it or remove its archived record. Clear history removes
+  archived entries while keeping active alerts.
+- **Live notifications:** Click a card to invoke its default action, or focus the
+  application when no default action is available. Use the sender's action buttons
+  for other actions. Right-click or choose Dismiss to dismiss a toast.
+- **Verification codes:** Choose Copy Code to copy the detected code to the
+  clipboard. Right-clicking that control dismisses the toast without copying.
+- **Settings:** Choose position, grouping, and duration, toggle DND, or send a
+  preview. Previews opened from settings appear in the panel's History tab.
 
----
+While the panel is open, desktop toasts are hidden and their timers pause;
+notifications remain accessible in the panel. Sticky chat alerts and urgency can
+change when a notification expires, independently of the selected duration.
+
+The existing history command also opens this panel:
+
+```bash
+omarchy shell notifications showHistory
+```
+
+## Update
+
+```bash
+git -C ~/.config/omarchy/plugins/andrewscofield.notifications-settings pull --ff-only
+omarchy restart shell
+```
+
+If you have local edits, review and commit or save them before updating.
+
+## Return to stock notifications
+
+Remove this plugin from `plugins` and `bar.layout` in
+`~/.config/omarchy/shell.json`, remove `omarchy.notifications` from
+`disabledPlugins`, then run `omarchy restart shell`.
+
+## Local storage and notification handling
+
+Settings are stored in `~/.local/state/omarchy/notifications.json`. Active and
+archived notifications, plus saved images, live under
+`~/.local/state/omarchy/notifications/`. Notification content is stored locally
+as plaintext, including any verification codes present in messages.
+
+The Python storage helper uses private directories, bounded reads, and atomic
+writes. Notification text is rendered as plain text; image sources are limited
+to supported local files, providers, and icon names. Arbitrary command hints
+are not executed. Application actions use the live notification's callbacks,
+and the focus fallback uses Omarchy's application-focus helper.
 
 ## Development checks
 
-Run `node tests/panel.test.cjs` and `node tests/history.test.cjs` for panel,
-search, and history identity regressions. `node tests/icons.test.cjs` checks
-sender identity, logo selection, and image-path persistence. On an Omarchy installation, run
-`python3 tests/run-card-input.py` to exercise the actual card pointer handlers
-in an isolated offscreen Quickshell instance.
+From the repository root:
 
-## 📄 License
+```bash
+node tests/panel.test.cjs
+node tests/history.test.cjs
+node tests/icons.test.cjs
+python3 tests/run-card-input.py
+git diff --check
+```
 
-This project is licensed under the [MIT License](LICENSE).
+The Python check requires an Omarchy installation and runs actual card pointer
+handlers in an isolated offscreen Quickshell instance. Compositor input regions,
+bar anchoring, and theme appearance should also be checked in a live Wayland session.
+
+## Credits and license
+
+Original plugin by **Andrew Scofield**, built on **Omarchy**. Fork improvements
+by **Joao Victor Weyne Parente Caliman (sum117)**. See
+[ATTRIBUTIONS.md](ATTRIBUTIONS.md) for the contribution breakdown and asset sources.
+
+Distributed under the [MIT License](LICENSE), retaining upstream copyright notices.
