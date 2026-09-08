@@ -25,6 +25,9 @@ runs its default action, or focuses the app if no default action is available.
 Archived notifications can only focus an existing app window; expired action
 callbacks cannot be replayed. Right-clicking a toast (including its code-copy
 button) dismisses it, and a visible Dismiss button is also available.
+Toast windows fit their visible cards and use the native Wayland input region;
+they do not rely on a full-screen click-through mask. Long stacks scroll within
+the available screen height.
 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)

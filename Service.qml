@@ -1036,111 +1036,120 @@ Item {
       readonly property var popupPlacement: NotificationLogic.popupPlacement(
         service.barPosition, service.barClearance, Style.gapsOut, service.position)
 
-      // Full-screen, fixed-size surface (like the OSD overlay). Adding or
-      // removing a toast changes only the content inside; the Wayland surface
-      // never resizes, so the compositor can't briefly scale a stale buffer --
-      // which is what stretched/squished the cards during count changes.
-      anchors { top: true; bottom: true; left: true; right: true }
+      // Make the Wayland surface fit the cards. Its default input region is
+      // then the visible toast area, with no full-screen click-through mask.
+      implicitWidth: Math.min(Style.space(380), screen.width - popupPlacement.margins.left - popupPlacement.margins.right)
+      implicitHeight: Math.min(popupColumn.implicitHeight,
+        screen.height - popupPlacement.margins.top - popupPlacement.margins.bottom)
+      anchors {
+        top: popupWindow.popupPlacement.isTop
+        bottom: popupWindow.popupPlacement.isBottom
+        left: popupWindow.popupPlacement.isLeft
+        right: popupWindow.popupPlacement.isRight
+      }
+      margins {
+        top: popupWindow.popupPlacement.margins.top
+        bottom: popupWindow.popupPlacement.margins.bottom
+        left: popupWindow.popupPlacement.margins.left
+        right: popupWindow.popupPlacement.margins.right
+      }
 
-      // Keep the surface click-through except over the toast column, so the
-      // rest of the (invisible) full-screen overlay never eats input.
-      mask: Region { item: popupColumn }
+      Flickable {
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: popupColumn.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        flickableDirection: Flickable.VerticalFlick
+        interactive: contentHeight > height
 
-      ColumnLayout {
-        id: popupColumn
-        anchors.horizontalCenter: popupWindow.popupPlacement.isCenter ? parent.horizontalCenter : undefined
-        anchors.left: popupWindow.popupPlacement.isLeft ? parent.left : undefined
-        anchors.right: popupWindow.popupPlacement.isRight ? parent.right : undefined
-        anchors.top: popupWindow.popupPlacement.isTop ? parent.top : undefined
-        anchors.bottom: popupWindow.popupPlacement.isBottom ? parent.bottom : undefined
+        ColumnLayout {
+          id: popupColumn
+          width: parent.width
+          spacing: Style.space(8)
 
-        anchors.topMargin: popupWindow.popupPlacement.margins.top
-        anchors.bottomMargin: popupWindow.popupPlacement.margins.bottom
-        anchors.leftMargin: popupWindow.popupPlacement.margins.left
-        anchors.rightMargin: popupWindow.popupPlacement.margins.right
-        spacing: Style.space(8)
+          Repeater {
+            model: popupModel
 
-        Repeater {
-          model: popupModel
+            // The delegate is a slot Item that owns lifetime timer state. The
+            // actual visuals live in NotificationCard, which the history panel
+            // also reuses.
+            delegate: Item {
+              id: cardSlot
+              required property int index
+              required property int originalId
+              required property string app
+              required property string appIcon
+              required property string summary
+              required property string body
+              required property string image
+              required property string glyph
+              required property string channel
+              required property int urgency
+              required property double expireTimeout
+              required property double timestamp
 
-          // The delegate is a slot Item that owns lifetime timer state. The
-          // actual visuals live in NotificationCard, which the history panel
-          // also reuses.
-          delegate: Item {
-            id: cardSlot
-            required property int index
-            required property int originalId
-            required property string app
-            required property string appIcon
-            required property string summary
-            required property string body
-            required property string image
-            required property string glyph
-            required property string channel
-            required property int urgency
-            required property double expireTimeout
-            required property double timestamp
+              // Each card sizes itself based on mode (text vs media); the slot
+              // tracks the card so the column auto-fits to whichever is widest.
+              width: card.implicitWidth
+              height: card.implicitHeight
+              implicitWidth: card.implicitWidth
+              implicitHeight: card.implicitHeight
+              Layout.preferredWidth: card.implicitWidth
+              Layout.preferredHeight: card.implicitHeight
+              Layout.alignment: popupWindow.popupPlacement.isLeft ? Qt.AlignLeft : (popupWindow.popupPlacement.isRight ? Qt.AlignRight : Qt.AlignHCenter)
 
-            // Each card sizes itself based on mode (text vs media); the slot
-            // tracks the card so the column auto-fits to whichever is widest.
-            width: card.implicitWidth
-            height: card.implicitHeight
-            implicitWidth: card.implicitWidth
-            implicitHeight: card.implicitHeight
-            Layout.preferredWidth: card.implicitWidth
-            Layout.preferredHeight: card.implicitHeight
-            Layout.alignment: popupWindow.popupPlacement.isLeft ? Qt.AlignLeft : (popupWindow.popupPlacement.isRight ? Qt.AlignRight : Qt.AlignHCenter)
+              readonly property real lifetime: service.durationFor(cardSlot.urgency, cardSlot.expireTimeout, cardSlot.app, cardSlot.appIcon)
+              property real remainingLifetime: 1.0
+              readonly property bool ticking: cardSlot.lifetime > 0 && !card.hovered && service.panelOpenCount === 0
 
-            readonly property real lifetime: service.durationFor(cardSlot.urgency, cardSlot.expireTimeout, cardSlot.app, cardSlot.appIcon)
-            property real remainingLifetime: 1.0
-            readonly property bool ticking: cardSlot.lifetime > 0 && !card.hovered && service.panelOpenCount === 0
+              // A client updating this notification in place rewrites the row
+              // under the card (see refreshPopup). New text deserves a full look,
+              // so the countdown starts over instead of running out the clock the
+              // superseded text was already most of the way through. Delegates
+              // keep their own row as the model changes around them, so only a
+              // real content change lands here.
+              onSummaryChanged: cardSlot.remainingLifetime = 1.0
+              onBodyChanged: cardSlot.remainingLifetime = 1.0
+              onImageChanged: cardSlot.remainingLifetime = 1.0
 
-            // A client updating this notification in place rewrites the row
-            // under the card (see refreshPopup). New text deserves a full look,
-            // so the countdown starts over instead of running out the clock the
-            // superseded text was already most of the way through. Delegates
-            // keep their own row as the model changes around them, so only a
-            // real content change lands here.
-            onSummaryChanged: cardSlot.remainingLifetime = 1.0
-            onBodyChanged: cardSlot.remainingLifetime = 1.0
-            onImageChanged: cardSlot.remainingLifetime = 1.0
-
-            Timer {
-              interval: 50
-              repeat: true
-              running: cardSlot.ticking
-              onTriggered: {
-                if (cardSlot.lifetime <= 0) return
-                cardSlot.remainingLifetime -= 50.0 / cardSlot.lifetime
-                if (cardSlot.remainingLifetime <= 0) {
-                  cardSlot.remainingLifetime = 0
-                  service.expirePopup(cardSlot.index)
+              Timer {
+                interval: 50
+                repeat: true
+                running: cardSlot.ticking
+                onTriggered: {
+                  if (cardSlot.lifetime <= 0) return
+                  cardSlot.remainingLifetime -= 50.0 / cardSlot.lifetime
+                  if (cardSlot.remainingLifetime <= 0) {
+                    cardSlot.remainingLifetime = 0
+                    service.expirePopup(cardSlot.index)
+                  }
                 }
               }
-            }
 
-            NotificationCard {
-              id: card
-              anchors.fill: parent
-              app: cardSlot.app
-              appIcon: cardSlot.appIcon
-              summary: cardSlot.summary
-              body: cardSlot.body
-              image: cardSlot.image
-              urgency: cardSlot.urgency
-              timestamp: cardSlot.timestamp
-              cornerRadius: service.cornerRadius
-              fontFamily: service.shell && service.shell.bar ? service.shell.bar.fontFamily : ""
-              glyph: cardSlot.glyph
-              channel: cardSlot.channel
-              otpEnabled: service.otpCopy
-              actions: service.actionsForEntry({ originalId: cardSlot.originalId, timestamp: cardSlot.timestamp })
-              onActionRequested: function(identifier) {
-                service.invokeEntryAction({ originalId: cardSlot.originalId, timestamp: cardSlot.timestamp }, identifier)
+              NotificationCard {
+                id: card
+                anchors.fill: parent
+                app: cardSlot.app
+                appIcon: cardSlot.appIcon
+                summary: cardSlot.summary
+                body: cardSlot.body
+                image: cardSlot.image
+                urgency: cardSlot.urgency
+                timestamp: cardSlot.timestamp
+                cornerRadius: service.cornerRadius
+                fontFamily: service.shell && service.shell.bar ? service.shell.bar.fontFamily : ""
+                glyph: cardSlot.glyph
+                channel: cardSlot.channel
+                otpEnabled: service.otpCopy
+                actions: service.actionsForEntry({ originalId: cardSlot.originalId, timestamp: cardSlot.timestamp })
+                onActionRequested: function(identifier) {
+                  service.invokeEntryAction({ originalId: cardSlot.originalId, timestamp: cardSlot.timestamp }, identifier)
+                }
+
+                onCloseRequested: service.dismissPopup(cardSlot.index)
+                onCardClicked: service.invokePopupDefault(cardSlot.index)
               }
-
-              onCloseRequested: service.dismissPopup(cardSlot.index)
-              onCardClicked: service.invokePopupDefault(cardSlot.index)
             }
           }
         }
