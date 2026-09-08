@@ -3,6 +3,7 @@ import QtQuick.Controls as Controls
 import QtQuick.Layouts
 import qs.Commons
 import qs.Ui
+import "components"
 
 KeyboardPanel {
   id: root
@@ -13,12 +14,24 @@ KeyboardPanel {
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   property bool previewSent: false
+  property bool historyView: true
+  property bool countedOpen: false
+
+  function updatePanelPresence() {
+    if (!service || countedOpen === open) return
+    service.panelOpenCount = Math.max(0, service.panelOpenCount + (open ? 1 : -1))
+    countedOpen = open
+    if (open) service.refreshHistory()
+  }
+  Component.onDestruction: {
+    if (countedOpen && service) service.panelOpenCount = Math.max(0, service.panelOpenCount - 1)
+  }
 
   // Use KeyboardPanel's anchor placement, screen clamping and dismissal.
   centerOnBar: false
   focusTarget: form
   contentWidth: fittedContentWidth(Style.space(380))
-  contentHeight: fittedContentHeight(mainColumn.implicitHeight)
+  contentHeight: fittedContentHeight(historyView ? Style.space(550) : mainColumn.implicitHeight + navigation.implicitHeight + Style.spacing.lg)
 
   component Section: PanelSectionHeader {
     Layout.fillWidth: true
@@ -71,6 +84,64 @@ KeyboardPanel {
     anchors.fill: parent
     Keys.onEscapePressed: root.close()
 
+    Connections {
+      target: root
+      function onOpenChanged() { root.updatePanelPresence() }
+    }
+    Connections {
+      target: root.service
+      function onOpenHistorySerialChanged() { root.historyView = true }
+    }
+    Timer {
+      interval: 1000
+      repeat: true
+      running: root.open && root.historyView
+      onTriggered: if (root.service) root.service.refreshHistory()
+    }
+
+    RowLayout {
+      id: navigation
+      anchors.top: parent.top
+      width: parent.width
+      spacing: Style.spacing.md
+      Button {
+        Layout.fillWidth: true
+        text: "History"
+        selected: root.historyView
+        bordered: true
+        focusable: true
+        foreground: root.foreground
+        fontFamily: root.fontFamily
+        onClicked: {
+          root.historyView = true
+          if (root.service) root.service.refreshHistory()
+        }
+      }
+      Button {
+        Layout.fillWidth: true
+        text: "Settings"
+        selected: !root.historyView
+        bordered: true
+        focusable: true
+        foreground: root.foreground
+        fontFamily: root.fontFamily
+        onClicked: root.historyView = false
+      }
+    }
+
+    NotificationHistory {
+      anchors.top: navigation.bottom
+      anchors.topMargin: Style.spacing.lg
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
+      visible: root.historyView
+      service: root.service
+      foreground: root.foreground
+      fontFamily: root.fontFamily
+      onActivated: root.close()
+    }
+
     Timer {
       id: previewTimer
       interval: 2000
@@ -79,7 +150,12 @@ KeyboardPanel {
 
     Flickable {
       id: scroller
-      anchors.fill: parent
+      visible: !root.historyView
+      anchors.top: navigation.bottom
+      anchors.topMargin: Style.spacing.lg
+      anchors.left: parent.left
+      anchors.right: parent.right
+      anchors.bottom: parent.bottom
       contentWidth: width
       contentHeight: mainColumn.implicitHeight
       clip: true
@@ -202,6 +278,8 @@ KeyboardPanel {
             onClicked: {
               if (!root.service) return
               root.service.sendPreview()
+              root.historyView = true
+              root.service.refreshHistory()
               root.previewSent = true
               previewTimer.restart()
             }
@@ -215,8 +293,8 @@ KeyboardPanel {
             foreground: root.foreground
             fontFamily: root.fontFamily
             onClicked: {
-              if (root.service) root.service.showRecentHistory()
-              root.close()
+              root.historyView = true
+              if (root.service) root.service.refreshHistory()
             }
             onActiveFocusChanged: if (activeFocus) root.revealControl(this)
           }

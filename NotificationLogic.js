@@ -572,8 +572,18 @@ function extractOtp(summary, body) {
   return null
 }
 
+// Every search term must occur somewhere in the visible notification text.
+function filterHistory(rows, query) {
+  var terms = String(query || "").trim().toLowerCase().split(/\s+/).filter(function(term) { return term.length > 0 })
+  return (rows || []).filter(function(row) {
+    var text = [row.app, row.summary, row.body, row.channel].join(" ").toLowerCase()
+    return terms.every(function(term) { return text.indexOf(term) !== -1 })
+  })
+}
+
 if (typeof module !== "undefined") {
   module.exports = {
+    filterHistory: filterHistory,
     isChromiumDerived: isChromiumDerived,
     sanitizeBody: sanitizeBody,
     summaryStartsWithGlyph: summaryStartsWithGlyph,

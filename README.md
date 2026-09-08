@@ -13,6 +13,20 @@ clicked bell. Tab navigates controls; Enter/Space activates them, and Escape
 closes the panel. The bell changes to its crossed-out companion when DND is on.
 Notification text follows the shell font, and previews expire automatically.
 
+History opens as a searchable, scrolling list inside the panel, including active
+alerts and up to 100 recent archived entries. Search matches app, title, message,
+and channel. Right-click an entry or use × to remove it. Clear history removes
+archived entries while keeping active alerts. Reading history never replays
+notifications onto the desktop. Desktop toasts are hidden while this panel is
+open, so its full-screen dismissal surface cannot intercept their controls.
+
+Live notifications expose the sending app's action buttons. Clicking the card
+runs its default action, or focuses the app if no default action is available.
+Archived notifications can only focus an existing app window; expired action
+callbacks cannot be replayed. Right-clicking a toast (including its code-copy
+button) dismisses it, and a visible Dismiss button is also available.
+
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Omarchy Quattro](https://img.shields.io/badge/Omarchy-Quattro-blue)](https://omarchy.com)
 
@@ -163,9 +177,10 @@ If you ever wish to switch back to the default Omarchy notification daemon:
 
 ## Development checks
 
-Run the panel behavior regression tests with `node tests/panel.test.cjs`.
-These exercise the widget handlers and the panel's owner-delegating close
-contract without starting the desktop shell.
+Run `node tests/panel.test.cjs` and `node tests/history.test.cjs` for panel,
+search, and history identity regressions. On an Omarchy installation, run
+`python3 tests/run-card-input.py` to exercise the actual card pointer handlers
+in an isolated offscreen Quickshell instance.
 
 ## 📄 License
 

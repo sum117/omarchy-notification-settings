@@ -30,8 +30,8 @@ Item {
   // acted upon.
   readonly property string popupStateDir: stateDir + "notifications/"
   // The notifications that already left the screen, one file each, trimmed to
-  // the newest historyLimit. This directory IS the history: `showHistory`
-  // replays exactly what has been moved in here.
+  // the newest historyLimit. The panel combines these with live entries
+  // without replaying either onto the desktop.
   readonly property string historyDir: popupStateDir + "history/"
   // Copies of the avatars/images persisted entries reference — the sender's
   // originals don't outlive the notification (see persistablePopup). Each
@@ -59,6 +59,7 @@ Item {
   // and the next read of that role segfaults in QQmlListModel::data. A JS
   // map only holds a wrapper, which degrades to a catchable error instead.
   property var liveRefs: ({})
+  property int actionRevision: 0
 
   // PersistentProperties handles in-process QML reloads. The on-disk
   // notifications.json file is the cross-restart backstop — its `dnd` key
@@ -120,9 +121,8 @@ Item {
   property alias popupModel: popupModel
   ListModel { id: popupModel }
 
-  // How many notifications the history directory keeps, and therefore how
-  // many `showHistory` can replay.
-  readonly property int historyLimit: 10
+  // Number of recent notifications retained for the searchable panel.
+  readonly property int historyLimit: 100
 
   readonly property int lowPopupDuration: 5000
   readonly property int normalPopupDuration: 8000
@@ -193,6 +193,8 @@ Item {
     notification.tracked = true
     var snapshot = snapshotOf(notification)
     liveRefs[snapshot.originalId] = notification
+    actionRevision++
+    notification.actionsChanged.connect(function() { service.actionRevision++ })
     // Guard the delete: a newer notification may have reused this originalId
     // (freedesktop replaces_id) and taken over the map slot.
     notification.closed.connect(function() {
@@ -412,8 +414,7 @@ Item {
     var ref = !restored && originalId >= 0 ? liveRefs[originalId] : null
     // The popup is leaving the screen — for any reason — so its file must not
     // survive to the next shell restart. It becomes the newest history entry
-    // instead. Rows that never had a file (a history replay, the empty-history
-    // placeholder) archive to nothing, which the move tolerates.
+    // instead. A missing file is tolerated by the storage helper.
     if (entry) {
       archivePopupFileFor(entry)
       if (restored) delete restoredPopups[NotificationLogic.popupFileName(entry)]
@@ -465,6 +466,43 @@ Item {
     // that click-to-jump actually works.
     if (!invoked) focusApp(entry)
     dismissPopup(index)
+  }
+
+  function liveRefForEntry(entry) {
+    var index = liveIndexFor(entry)
+    if (index < 0 || isRestoredRow(entry)) return null
+    return liveRefs[entry.originalId] || null
+  }
+
+  function actionsForEntry(entry) {
+    var revision = actionRevision // Track action updates independently of text.
+    var ref = liveRefForEntry(entry)
+    var out = []
+    try {
+      if (ref && ref.actions) {
+        for (var i = 0; i < ref.actions.length; i++) {
+          var action = ref.actions[i]
+          if (action && action.identifier !== "default")
+            out.push({ identifier: String(action.identifier), text: NotificationLogic.sanitizeText(action.text, 64) })
+        }
+      }
+    } catch (e) {}
+    return out
+  }
+
+  function invokeEntryAction(entry, identifier) {
+    var ref = liveRefForEntry(entry)
+    if (!ref) return
+    try {
+      for (var i = 0; i < ref.actions.length; i++) {
+        if (ref.actions[i].identifier === identifier) {
+          ref.actions[i].invoke()
+          var index = liveIndexFor(entry)
+          if (index >= 0) dismissPopup(index)
+          return
+        }
+      }
+    } catch (e) { console.warn("Notification action unavailable:", e) }
   }
 
   // Try to focus an existing Hyprland window matching the notification's
@@ -611,6 +649,8 @@ Item {
 
   function clearHistory() {
     enqueuePopupFileJob([service.storageScript, "clear-history", historyDir, imagesDir, popupStateDir])
+    historyEntries = liveHistoryRows()
+    refreshHistory()
   }
 
   function sweepOrphanImages() {
@@ -625,96 +665,77 @@ Item {
     onExited: service.runNextPopupFileJob()
     stdout: StdioCollector {
       waitForEnd: true
-      onStreamFinished: service.replayHistory(text)
+      onStreamFinished: service.loadHistory(text)
     }
   }
 
-  // Toasts that were on screen when the replay was asked for. The clear in
-  // replayHistory archives them, but the directory read is already in flight
-  // by then, so they're handed over in memory instead of being waited for.
-  property var replayCarryOver: []
-
-  // Set from the moment a read is queued until it starts, so a second
-  // showHistory while one is still waiting its turn doesn't queue another.
+  // History is separate from desktop toasts. Reading it never dismisses,
+  // replaces, or resurrects live notifications.
+  property var historyEntries: []
   property bool historyReadQueued: false
+  readonly property bool historyLoading: historyReadQueued || readHistoryProc.running
+  property int openHistorySerial: 0
+  property int panelOpenCount: 0
 
-  // Re-show what's in historyDir as toasts. The read goes through the file
-  // queue and its own subprocess, so the replay lands in replayHistory once
-  // the work queued ahead of it has finished.
-  function showRecentHistory() {
-    if (readHistoryProc.running || service.historyReadQueued) return "ok"
-    service.replayCarryOver = liveRowsForReplay()
-    service.historyReadQueued = true
+  function refreshHistory() {
+    if (readHistoryProc.running || historyReadQueued) return
+    historyReadQueued = true
     enqueueHistoryRead()
+  }
+
+  function showRecentHistory() {
+    openHistorySerial++
+    refreshHistory()
+    if (shell && typeof shell.summon === "function")
+      shell.summon("andrewscofield.notifications-settings", "{}")
     return "ok"
   }
 
   function startHistoryRead() {
-    service.historyReadQueued = false
-    readHistoryProc.command = [service.storageScript, "read-history", historyDir, String(service.historyLimit)]
+    historyReadQueued = false
+    readHistoryProc.command = [storageScript, "read-history", historyDir, String(historyLimit)]
     readHistoryProc.running = true
   }
 
-  // Copy the on-screen rows out of the model. The placeholder from an earlier
-  // empty replay carries originalId -1 and is not a notification, so it is
-  // left behind rather than replayed as one. The replay dismisses these
-  // notifications, and senders delete their images on close — so the carried
-  // rows point at the persisted copies, like the archived files they join.
-  function liveRowsForReplay() {
+  function liveHistoryRows() {
     var rows = []
     for (var i = 0; i < popupModel.count; i++) {
       var row = popupModel.get(i)
-      if (!row || row.originalId < 0) continue
-      rows.push(NotificationLogic.persistablePopup({
-        id: row.id,
-        originalId: row.originalId,
-        app: row.app,
-        appIcon: row.appIcon,
-        summary: row.summary,
-        body: row.body,
-        image: row.image,
-        glyph: row.glyph || "",
-        channel: row.channel || "",
-        urgency: row.urgency,
-        timestamp: row.timestamp
-      }, imagesDir).entry)
+      if (row && row.originalId >= 0)
+        rows.push(NotificationLogic.historyEntry(row, NotificationUrgency.Normal))
     }
     return rows
   }
 
-  function replayHistory(raw) {
+  function loadHistory(raw) {
     var rows = NotificationLogic.historyRows(
-      raw, service.replayCarryOver, NotificationUrgency.Normal, service.historyLimit)
-    service.replayCarryOver = []
+      raw, liveHistoryRows(), NotificationUrgency.Normal, historyLimit)
+    if (JSON.stringify(rows) !== JSON.stringify(historyEntries)) historyEntries = rows
+  }
 
-    // Replaying nothing at all looks like a dead keybinding, so say so.
-    if (rows.length === 0) {
-      popupModel.insert(0, {
-        id: -1,
-        originalId: -1,
-        app: "omarchy-action",
-        appIcon: "",
-        summary: "No recent notifications",
-        body: "",
-        image: "",
-        glyph: "󰂚",
-        channel: "",
-        urgency: NotificationUrgency.Low,
-        expireTimeout: 0,
-        timestamp: Date.now()
-      })
-      return
+  function liveIndexFor(entry) {
+    var key = NotificationLogic.popupFileName(entry)
+    for (var i = 0; i < popupModel.count; i++) {
+      if (NotificationLogic.popupFileName(popupModel.get(i)) === key) return i
     }
+    return -1
+  }
 
-    clearPopups()
-    // Rows arrive newest-first, and index 0 is the top of the toast stack.
-    for (var i = 0; i < rows.length; i++) {
-      // Replayed rows are restored rows: their notification died with the
-      // sender long ago, so they must never resolve to a live server object
-      // that has since been handed their old id.
-      service.restoredPopups[NotificationLogic.popupFileName(rows[i])] = true
-      popupModel.append(rows[i])
-    }
+  function activateHistory(entry) {
+    var index = liveIndexFor(entry)
+    if (index >= 0) invokePopupDefault(index)
+    else focusApp(entry) // Archived callbacks no longer exist; only focus the app.
+  }
+
+  function removeHistoryEntry(entry) {
+    var index = liveIndexFor(entry)
+    if (index >= 0) dismissPopup(index)
+    var stem = NotificationLogic.imageStem(entry)
+    enqueuePopupFileJob([storageScript, "delete", historyDir, imagesDir, stem])
+    historyEntries = historyEntries.filter(function(row) {
+      return NotificationLogic.imageStem(row) !== stem
+    })
+    refreshHistory()
   }
 
   Process {
@@ -995,7 +1016,7 @@ Item {
       id: popupWindow
       required property var modelData
       screen: modelData
-      visible: popupModel.count > 0
+      visible: popupModel.count > 0 && service.panelOpenCount === 0
 
       WlrLayershell.namespace: "omarchy-notifications"
       WlrLayershell.layer: WlrLayer.Overlay
@@ -1039,6 +1060,7 @@ Item {
           delegate: Item {
             id: cardSlot
             required property int index
+            required property int originalId
             required property string app
             required property string appIcon
             required property string summary
@@ -1062,7 +1084,7 @@ Item {
 
             readonly property real lifetime: service.durationFor(cardSlot.urgency, cardSlot.expireTimeout, cardSlot.app, cardSlot.appIcon)
             property real remainingLifetime: 1.0
-            readonly property bool ticking: cardSlot.lifetime > 0 && !card.hovered
+            readonly property bool ticking: cardSlot.lifetime > 0 && !card.hovered && service.panelOpenCount === 0
 
             // A client updating this notification in place rewrites the row
             // under the card (see refreshPopup). New text deserves a full look,
@@ -1103,6 +1125,10 @@ Item {
               glyph: cardSlot.glyph
               channel: cardSlot.channel
               otpEnabled: service.otpCopy
+              actions: service.actionsForEntry({ originalId: cardSlot.originalId, timestamp: cardSlot.timestamp })
+              onActionRequested: function(identifier) {
+                service.invokeEntryAction({ originalId: cardSlot.originalId, timestamp: cardSlot.timestamp }, identifier)
+              }
 
               onCloseRequested: service.dismissPopup(cardSlot.index)
               onCardClicked: service.invokePopupDefault(cardSlot.index)

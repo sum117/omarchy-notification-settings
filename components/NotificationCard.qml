@@ -12,6 +12,9 @@ import "../NotificationLogic.js" as NotificationLogic
 BorderSurface {
   id: root
 
+  property bool expanded: false
+  property var actions: []
+  signal actionRequested(string identifier)
   property string app: ""
   property string appIcon: ""
   property string summary: ""
@@ -228,7 +231,7 @@ BorderSurface {
           font.bold: true
           wrapMode: Text.WordWrap
           elide: Text.ElideRight
-          maximumLineCount: 2
+          maximumLineCount: root.expanded ? 100 : 2
         }
 
         Text {
@@ -242,8 +245,40 @@ BorderSurface {
           font.pixelSize: Style.font.title
           wrapMode: Text.WordWrap
           elide: Text.ElideRight
-          maximumLineCount: 3
+          maximumLineCount: root.expanded ? 100 : 3
         }
+      }
+    }
+
+    Flow {
+      visible: root.actions.length > 0 || !root.expanded
+      Layout.fillWidth: true
+      Layout.preferredHeight: childrenRect.height
+      Layout.leftMargin: Style.space(12)
+      Layout.rightMargin: Style.space(12)
+      Layout.bottomMargin: Style.space(8)
+      spacing: Style.spacing.md
+      Repeater {
+        model: root.actions
+        Button {
+          required property var modelData
+          objectName: "notificationAction-" + modelData.identifier
+          text: modelData.text
+          bordered: true
+          focusable: true
+          fontFamily: root.fontFamily
+          onClicked: root.actionRequested(modelData.identifier)
+          onRightClicked: root.closeRequested()
+        }
+      }
+      Button {
+        objectName: "dismissNotification"
+        visible: !root.expanded
+        text: "Dismiss"
+        focusable: true
+        fontFamily: root.fontFamily
+        onClicked: root.closeRequested()
+        onRightClicked: root.closeRequested()
       }
     }
 
@@ -289,12 +324,14 @@ BorderSurface {
 
         MouseArea {
           id: otpArea
+          objectName: "copyCode"
           anchors.fill: parent
           hoverEnabled: true
           cursorShape: Qt.PointingHandCursor
-          acceptedButtons: Qt.LeftButton
+          acceptedButtons: Qt.LeftButton | Qt.RightButton
           onClicked: function(mouse) {
             mouse.accepted = true
+            if (mouse.button === Qt.RightButton) { root.closeRequested(); return }
             root.copiedOtp = true
             Util.execArgv(["wl-copy", "--sensitive", "--", root.otpCode])
             root.otpCopied(root.otpCode)
