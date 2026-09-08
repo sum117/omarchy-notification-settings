@@ -878,10 +878,11 @@ Item {
   function sendPreview() {
     Util.execArgv([
       "notify-send",
-      "-a", "Slack",
-      "-h", "string:x-kde-tag:channel_dev",
-      "Alice in #dev",
-      "G-492019 is your staging deploy verification code."
+      "-a", "omarchy-action",
+      "-u", "low",
+      "-t", "3000",
+      "Notification preview",
+      "Your verification code is: 492019"
     ])
   }
 

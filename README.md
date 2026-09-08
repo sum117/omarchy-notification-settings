@@ -8,6 +8,11 @@ Python bytecode and ignores generated Python caches.
 The plugin ID remains `andrewscofield.notifications-settings` for compatibility
 with existing installations. Upstream: [andrewscofield/omarchy-notification-settings](https://github.com/andrewscofield/omarchy-notification-settings).
 
+The settings panel uses Omarchy's native themed controls and opens beside the
+clicked bell. Tab navigates controls; Enter/Space activates them, and Escape
+closes the panel. The bell changes to its crossed-out companion when DND is on.
+Notification text follows the shell font, and previews expire automatically.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Omarchy Quattro](https://img.shields.io/badge/Omarchy-Quattro-blue)](https://omarchy.com)
 

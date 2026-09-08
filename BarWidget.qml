@@ -5,11 +5,15 @@ import qs.Ui
 BarWidget {
   id: root
   moduleName: "andrewscofield.notifications-settings"
+  readonly property bool hovered: button.tooltipHovered
 
   readonly property var service: bar && bar.shell
     ? (bar.shell.serviceFor("andrewscofield.notifications-settings") || bar.shell.serviceFor(root.moduleName) || bar.shell.serviceFor("andrew.notifications") || bar.shell.firstPartyServiceFor("omarchy.notifications"))
     : null
-  readonly property bool isCenter: root.region === "center"
+  readonly property bool isCenter: bar && bar.layoutConfig && bar.layoutConfig.center
+    ? bar.layoutConfig.center.some(function(entry) {
+        return (typeof entry === "string" ? entry : entry.id) === root.moduleName
+      }) : false
   readonly property bool centerHovered: bar && bar.centerSectionRevealHeld === true && bar.centerHoverRevealSuppressed !== true
   readonly property bool isDnd: service ? service.doNotDisturb : false
   readonly property bool panelOpen: panelLoader.item ? panelLoader.item.open : false
@@ -30,8 +34,8 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    // Use the same notification glyph as Omarchy's stock Dnd indicator.
-    text: "󰂛"
+    // Matched Nerd Font bells: the slash appears only while DND is on.
+    text: root.isDnd ? "󰂛" : "󰂚"
     tooltipText: root.isDnd ? "Notifications Muted · Right-click to unmute" : "Notification Settings"
     useActiveColor: root.isDnd
     activeColor: Color.urgent

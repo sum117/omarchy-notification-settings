@@ -1,510 +1,238 @@
 import QtQuick
+import QtQuick.Controls as Controls
 import QtQuick.Layouts
-import Quickshell
 import qs.Commons
 import qs.Ui
 
 KeyboardPanel {
   id: root
 
-  property var service: bar && bar.shell ? (bar.shell.serviceFor("andrewscofield.notifications-settings") || bar.shell.serviceFor("andrew.notifications") || bar.shell.firstPartyServiceFor("omarchy.notifications")) : null
+  readonly property var service: bar && bar.shell
+    ? bar.shell.serviceFor("andrewscofield.notifications-settings") : null
+  readonly property bool dnd: service ? service.doNotDisturb : false
+  readonly property color foreground: bar ? bar.foreground : Color.foreground
+  readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   property bool previewSent: false
 
-  centerOnBar: true
-  focusTarget: keyCatcher
-  contentWidth: fittedContentWidth(Style.space(420))
+  // Use KeyboardPanel's anchor placement, screen clamping and dismissal.
+  centerOnBar: false
+  focusTarget: form
+  contentWidth: fittedContentWidth(Style.space(380))
   contentHeight: fittedContentHeight(mainColumn.implicitHeight)
 
-  PanelKeyCatcher {
-    id: keyCatcher
+  component Section: PanelSectionHeader {
+    Layout.fillWidth: true
+    foreground: root.foreground
+    fontFamily: root.fontFamily
+  }
+
+  component Separator: PanelSeparator {
+    Layout.fillWidth: true
+    foreground: root.foreground
+  }
+
+  component Choices: RowLayout {
+    id: choices
+    property var options: []
+    property string value: ""
+    signal selected(string value)
+    Layout.fillWidth: true
+    spacing: Style.spacing.md
+
+    Repeater {
+      model: choices.options
+      Button {
+        required property var modelData
+        Layout.fillWidth: true
+        text: modelData.label
+        selected: choices.value === modelData.value
+        bordered: true
+        focusable: true
+        foreground: root.foreground
+        fontFamily: root.fontFamily
+        onClicked: choices.selected(modelData.value)
+        onActiveFocusChanged: if (activeFocus) root.revealControl(this)
+      }
+    }
+  }
+
+  // Keep focused controls in view when the screen cannot fit the whole form.
+  function revealControl(item) {
+    var pos = item.mapToItem(mainColumn, 0, 0)
+    var next = scroller.contentY
+    if (pos.y < next) next = pos.y
+    else if (pos.y + item.height > next + scroller.height)
+      next = pos.y + item.height - scroller.height
+    scroller.contentY = Math.max(0, Math.min(next, scroller.contentHeight - scroller.height))
+  }
+
+  FocusScope {
+    id: form
     anchors.fill: parent
-    onCloseRequested: root.close()
+    Keys.onEscapePressed: root.close()
 
-    ColumnLayout {
-      id: mainColumn
-      width: parent.width
-      spacing: Style.space(12)
+    Timer {
+      id: previewTimer
+      interval: 2000
+      onTriggered: root.previewSent = false
+    }
 
-      // ------------------------------------------------ Header
-      RowLayout {
-        Layout.fillWidth: true
-        spacing: Style.space(10)
-
-        Rectangle {
-          Layout.preferredWidth: Style.space(36)
-          Layout.preferredHeight: Style.space(36)
-          radius: Style.cornerRadius
-          color: (root.service && root.service.doNotDisturb)
-            ? Qt.rgba(Color.urgent.r, Color.urgent.g, Color.urgent.b, 0.18)
-            : Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.18)
-          border.color: (root.service && root.service.doNotDisturb) ? Color.urgent : Color.accent
-          border.width: 1
-
-          Text {
-            anchors.centerIn: parent
-            text: (root.service && root.service.doNotDisturb) ? "󰂛" : "󰂚"
-            font.family: Style.font.family
-            font.pixelSize: Style.font.iconLarge
-            color: (root.service && root.service.doNotDisturb) ? Color.urgent : Color.accent
-          }
-        }
-
-        ColumnLayout {
-          Layout.fillWidth: true
-          spacing: Style.space(2)
-
-          Text {
-            text: "Notification Settings"
-            font.family: Style.font.family
-            font.pixelSize: Style.font.subtitle
-            font.bold: true
-            color: Color.foreground
-          }
-
-          Text {
-            text: (root.service && root.service.doNotDisturb)
-              ? "Do Not Disturb (Alerts silenced)"
-              : ((root.service ? root.service.popupModel.count : 0) + " alerts on screen")
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            color: (root.service && root.service.doNotDisturb) ? Color.urgent : Color.muted
-          }
-        }
-
-        // Quick DND Toggle Switch
-        RowLayout {
-          spacing: Style.space(6)
-          Text {
-            text: "DND"
-            font.family: Style.font.family
-            font.pixelSize: Style.font.caption
-            font.bold: true
-            color: (root.service && root.service.doNotDisturb) ? Color.urgent : Color.muted
-          }
-          ToggleSwitch {
-            checked: root.service ? root.service.doNotDisturb : false
-            onToggled: if (root.service) root.service.setDoNotDisturb(!root.service.doNotDisturb)
-          }
-        }
+    Flickable {
+      id: scroller
+      anchors.fill: parent
+      contentWidth: width
+      contentHeight: mainColumn.implicitHeight
+      clip: true
+      boundsBehavior: Flickable.StopAtBounds
+      flickableDirection: Flickable.VerticalFlick
+      Controls.ScrollBar.vertical: Controls.ScrollBar {
+        policy: scroller.contentHeight > scroller.height ? Controls.ScrollBar.AsNeeded : Controls.ScrollBar.AlwaysOff
       }
 
-      PanelSeparator {}
-
-      // ------------------------------------------------ Position Section
       ColumnLayout {
-        Layout.fillWidth: true
-        spacing: Style.space(6)
+        id: mainColumn
+        width: scroller.width
+        spacing: Style.spacing.lg
+        enabled: root.service !== null
 
-        PanelSectionHeader {
-          text: "SCREEN POSITION"
-        }
-
-        // Top positions (3)
-        RowLayout {
+        PanelHero {
           Layout.fillWidth: true
-          spacing: Style.space(6)
-
-          readonly property var topPositions: [
-            { id: "top-left", label: "Top Left" },
-            { id: "top-center", label: "Top Center" },
-            { id: "top-right", label: "Top Right" }
-          ]
-
-          Repeater {
-            model: parent.topPositions
-
-            Item {
-              required property var modelData
-              Layout.fillWidth: true
-              Layout.preferredHeight: Style.space(32)
-
-              readonly property bool isSelected: root.service ? root.service.position === modelData.id : (modelData.id === "bottom-center")
-
-              Rectangle {
-                anchors.fill: parent
-                radius: Style.cornerRadius
-                color: isSelected
-                  ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.2)
-                  : (topPosMouse.containsMouse ? Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.08) : "transparent")
-                border.color: isSelected ? Color.accent : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.2)
-                border.width: isSelected ? 1.5 : 1
-
-                Text {
-                  anchors.centerIn: parent
-                  text: modelData.label
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
-                  font.bold: isSelected
-                  color: isSelected ? Color.accent : Color.foreground
-                }
-
-                MouseArea {
-                  id: topPosMouse
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: if (root.service) root.service.setPosition(modelData.id)
-                }
-              }
+          title: "Notifications"
+          meta: root.dnd ? "Do not disturb" : "Notifications on"
+          foreground: root.foreground
+          fontFamily: root.fontFamily
+          iconComponent: Component {
+            OpticalGlyph {
+              implicitWidth: Style.font.display
+              implicitHeight: Style.font.display
+              text: root.dnd ? "󰂛" : "󰂚"
+              fontFamily: root.fontFamily
+              fontSize: Style.font.display
+              color: root.foreground
             }
           }
-        }
-
-        // Bottom positions (3)
-        RowLayout {
-          Layout.fillWidth: true
-          spacing: Style.space(6)
-
-          readonly property var bottomPositions: [
-            { id: "bottom-left", label: "Bottom Left" },
-            { id: "bottom-center", label: "Bottom Center" },
-            { id: "bottom-right", label: "Bottom Right" }
-          ]
-
-          Repeater {
-            model: parent.bottomPositions
-
-            Item {
-              required property var modelData
-              Layout.fillWidth: true
-              Layout.preferredHeight: Style.space(32)
-
-              readonly property bool isSelected: root.service ? root.service.position === modelData.id : (modelData.id === "bottom-center")
-
-              Rectangle {
-                anchors.fill: parent
-                radius: Style.cornerRadius
-                color: isSelected
-                  ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.2)
-                  : (botPosMouse.containsMouse ? Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.08) : "transparent")
-                border.color: isSelected ? Color.accent : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.2)
-                border.width: isSelected ? 1.5 : 1
-
-                Text {
-                  anchors.centerIn: parent
-                  text: modelData.label
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
-                  font.bold: isSelected
-                  color: isSelected ? Color.accent : Color.foreground
-                }
-
-                MouseArea {
-                  id: botPosMouse
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: if (root.service) root.service.setPosition(modelData.id)
-                }
-              }
-            }
-          }
-        }
-      }
-
-      // ------------------------------------------------ Timeout Section
-      ColumnLayout {
-        Layout.fillWidth: true
-        spacing: Style.space(6)
-
-        PanelSectionHeader {
-          text: "DISPLAY TIMEOUT"
-        }
-
-        RowLayout {
-          Layout.fillWidth: true
-          spacing: Style.space(6)
-
-          readonly property var durations: [ 3, 5, 8, 12, 15 ]
-
-          Repeater {
-            model: parent.durations
-
-            Item {
-              required property int modelData
-              Layout.fillWidth: true
-              Layout.preferredHeight: Style.space(30)
-
-              readonly property bool isSelected: root.service ? root.service.timeoutSeconds === modelData : (modelData === 8)
-
-              Rectangle {
-                anchors.fill: parent
-                radius: Style.cornerRadius
-                color: isSelected
-                  ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.2)
-                  : (durMouse.containsMouse ? Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.08) : "transparent")
-                border.color: isSelected ? Color.accent : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.2)
-                border.width: isSelected ? 1.5 : 1
-
-                Text {
-                  anchors.centerIn: parent
-                  text: modelData + "s"
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
-                  font.bold: isSelected
-                  color: isSelected ? Color.accent : Color.foreground
-                }
-
-                MouseArea {
-                  id: durMouse
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: if (root.service) root.service.setTimeoutSeconds(modelData)
-                }
-              }
-            }
-          }
-        }
-      }
-
-      PanelSeparator {}
-
-      // ------------------------------------------------ Grouping Section
-      ColumnLayout {
-        Layout.fillWidth: true
-        spacing: Style.space(6)
-
-        PanelSectionHeader {
-          text: "NOTIFICATION GROUPING"
-        }
-
-        RowLayout {
-          Layout.fillWidth: true
-          spacing: Style.space(6)
-
-          readonly property var modes: [
-            { id: "all", label: "All Alerts" },
-            { id: "app", label: "1 Per App" },
-            { id: "channel", label: "1 Per Channel" }
-          ]
-
-          Repeater {
-            model: parent.modes
-
-            Item {
-              required property var modelData
-              Layout.fillWidth: true
-              Layout.preferredHeight: Style.space(32)
-
-              readonly property bool isSelected: root.service ? root.service.groupingMode === modelData.id : (modelData.id === "channel")
-
-              Rectangle {
-                anchors.fill: parent
-                radius: Style.cornerRadius
-                color: isSelected
-                  ? Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.2)
-                  : (groupMouse.containsMouse ? Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.08) : "transparent")
-                border.color: isSelected ? Color.accent : Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.2)
-                border.width: isSelected ? 1.5 : 1
-
-                Text {
-                  anchors.centerIn: parent
-                  text: modelData.label
-                  font.family: Style.font.family
-                  font.pixelSize: Style.font.caption
-                  font.bold: isSelected
-                  color: isSelected ? Color.accent : Color.foreground
-                }
-
-                MouseArea {
-                  id: groupMouse
-                  anchors.fill: parent
-                  hoverEnabled: true
-                  cursorShape: Qt.PointingHandCursor
-                  onClicked: if (root.service) root.service.setGroupingMode(modelData.id)
-                }
-              }
-            }
-          }
-        }
-
-        Text {
-          Layout.fillWidth: true
-          Layout.topMargin: Style.space(2)
-          text: {
-            var mode = root.service ? root.service.groupingMode : "channel"
-            if (mode === "all") return "Show all incoming toasts without deduplication."
-            if (mode === "app") return "Keep 1 alert per app (newer replaces older from the same app)."
-            return "Keep 1 alert per channel/conversation (#dev and #general stay separate)."
-          }
-          font.family: Style.font.family
-          font.pixelSize: Style.font.caption
-          color: Color.muted
-          wrapMode: Text.WordWrap
-        }
-      }
-
-      PanelSeparator {}
-
-      // ------------------------------------------------ Toggles Section
-      ColumnLayout {
-        Layout.fillWidth: true
-        spacing: Style.space(6)
-
-        PanelSectionHeader {
-          text: "BEHAVIOR & FEATURES"
         }
 
         Toggle {
           Layout.fillWidth: true
-          label: "Extract 2FA / OTP Codes"
-          description: "Adds 1-click clipboard copy button to verification messages"
+          label: "Do not disturb"
+          checked: root.dnd
+          foreground: root.foreground
+          fontFamily: root.fontFamily
+          onClicked: if (root.service) root.service.setDoNotDisturb(!root.dnd)
+          onActiveFocusChanged: if (activeFocus) root.revealControl(this)
+        }
+
+        Separator {}
+        Section { text: "TOAST POSITION" }
+        Choices {
+          value: root.service ? root.service.position : "bottom-center"
+          options: [
+            { value: "top-left", label: "Top left" },
+            { value: "top-center", label: "Top center" },
+            { value: "top-right", label: "Top right" }
+          ]
+          onSelected: function(value) { if (root.service) root.service.setPosition(value) }
+        }
+        Choices {
+          value: root.service ? root.service.position : "bottom-center"
+          options: [
+            { value: "bottom-left", label: "Bottom left" },
+            { value: "bottom-center", label: "Bottom center" },
+            { value: "bottom-right", label: "Bottom right" }
+          ]
+          onSelected: function(value) { if (root.service) root.service.setPosition(value) }
+        }
+
+        Section { text: "DISPLAY TIMEOUT" }
+        Choices {
+          value: root.service ? String(root.service.timeoutSeconds) : "8"
+          options: [
+            { value: "3", label: "3s" }, { value: "5", label: "5s" },
+            { value: "8", label: "8s" }, { value: "12", label: "12s" },
+            { value: "15", label: "15s" }
+          ]
+          onSelected: function(value) { if (root.service) root.service.setTimeoutSeconds(Number(value)) }
+        }
+
+        Section { text: "GROUP NOTIFICATIONS" }
+        Choices {
+          value: root.service ? root.service.groupingMode : "channel"
+          options: [
+            { value: "all", label: "All" },
+            { value: "app", label: "By app" },
+            { value: "channel", label: "By channel" }
+          ]
+          onSelected: function(value) { if (root.service) root.service.setGroupingMode(value) }
+        }
+
+        Separator {}
+        Toggle {
+          Layout.fillWidth: true
+          label: "Copy verification codes"
+          description: "Show a copy button for one-time codes"
           checked: root.service ? root.service.otpCopy : true
+          foreground: root.foreground
+          fontFamily: root.fontFamily
           onClicked: if (root.service) root.service.setOtpCopy(!root.service.otpCopy)
+          onActiveFocusChanged: if (activeFocus) root.revealControl(this)
         }
-
         Toggle {
           Layout.fillWidth: true
-          label: "Sticky Chat Alerts"
-          description: "Keeps Slack, Signal, and messaging alerts visible until dismissed"
+          label: "Keep chat alerts visible"
+          description: "Dismiss messaging notifications manually"
           checked: root.service ? root.service.infiniteChat : true
+          foreground: root.foreground
+          fontFamily: root.fontFamily
           onClicked: if (root.service) root.service.setInfiniteChat(!root.service.infiniteChat)
-        }
-      }
-
-      PanelSeparator {}
-
-      // ------------------------------------------------ Preview & Actions Section
-      ColumnLayout {
-        Layout.fillWidth: true
-        spacing: Style.space(8)
-
-        PanelSectionHeader {
-          text: "PREVIEW & ACTIONS"
+          onActiveFocusChanged: if (activeFocus) root.revealControl(this)
         }
 
-        // Prominent Preview Button
-        Item {
-          Layout.fillWidth: true
-          Layout.preferredHeight: Style.space(38)
-
-          Rectangle {
-            id: previewBtn
-            anchors.fill: parent
-            radius: Style.cornerRadius
-            color: previewMouse.containsPress
-              ? Qt.darker(Color.accent, 1.3)
-              : (previewMouse.containsMouse ? Color.accent : Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.2))
-            border.color: Color.accent
-            border.width: 1.5
-
-            RowLayout {
-              anchors.centerIn: parent
-              spacing: Style.space(8)
-
-              Text {
-                text: root.previewSent ? "✓" : "󰔎"
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-                font.bold: true
-                color: previewMouse.containsMouse ? Color.background : Color.accent
-              }
-
-              Text {
-                text: root.previewSent ? "Preview Notification Sent!" : "Preview Notification Toast"
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-                font.bold: true
-                color: previewMouse.containsMouse ? Color.background : Color.foreground
-              }
-            }
-
-            MouseArea {
-              id: previewMouse
-              anchors.fill: parent
-              hoverEnabled: true
-              cursorShape: Qt.PointingHandCursor
-              onClicked: {
-                root.previewSent = true
-                if (root.service && typeof root.service.sendPreview === "function") {
-                  root.service.sendPreview()
-                } else {
-                  Util.execArgv([
-                    "notify-send",
-                    "-a", "Slack",
-                    "-h", "string:x-kde-tag:channel_dev",
-                    "Alice in #dev",
-                    "G-492019 is your staging deploy verification code."
-                  ])
-                }
-                previewResetTimer.restart()
-              }
-            }
-
-            Timer {
-              id: previewResetTimer
-              interval: 2000
-              onTriggered: root.previewSent = false
-            }
-          }
-        }
-
-        // Secondary Actions Row
+        Separator {}
         RowLayout {
           Layout.fillWidth: true
-          spacing: Style.space(8)
-
-          Item {
+          spacing: Style.spacing.md
+          Button {
             Layout.fillWidth: true
-            Layout.preferredHeight: Style.space(32)
-
-            Rectangle {
-              anchors.fill: parent
-              radius: Style.cornerRadius
-              color: clearMouse.containsMouse ? Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.1) : "transparent"
-              border.color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.2)
-              border.width: 1
-
-              RowLayout {
-                anchors.centerIn: parent
-                spacing: Style.space(6)
-                Text { text: "󰃢"; font.family: Style.font.family; color: Color.foreground; font.pixelSize: Style.font.caption }
-                Text { text: "Clear Active"; font.family: Style.font.family; color: Color.foreground; font.pixelSize: Style.font.caption; font.bold: true }
-              }
-
-              MouseArea {
-                id: clearMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: if (root.service) root.service.dismissAll()
-              }
+            text: root.previewSent ? "Sent" : "Preview"
+            bordered: true
+            focusable: true
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            onClicked: {
+              if (!root.service) return
+              root.service.sendPreview()
+              root.previewSent = true
+              previewTimer.restart()
             }
+            onActiveFocusChanged: if (activeFocus) root.revealControl(this)
           }
-
-          Item {
+          Button {
             Layout.fillWidth: true
-            Layout.preferredHeight: Style.space(32)
-
-            Rectangle {
-              anchors.fill: parent
-              radius: Style.cornerRadius
-              color: histMouse.containsMouse ? Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.1) : "transparent"
-              border.color: Qt.rgba(Color.foreground.r, Color.foreground.g, Color.foreground.b, 0.2)
-              border.width: 1
-
-              RowLayout {
-                anchors.centerIn: parent
-                spacing: Style.space(6)
-                Text { text: ""; font.family: Style.font.family; color: Color.foreground; font.pixelSize: Style.font.caption }
-                Text { text: "Open History"; font.family: Style.font.family; color: Color.foreground; font.pixelSize: Style.font.caption; font.bold: true }
-              }
-
-              MouseArea {
-                id: histMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                  if (root.service) root.service.showRecentHistory()
-                  root.close()
-                }
-              }
+            text: "History"
+            bordered: true
+            focusable: true
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            onClicked: {
+              if (root.service) root.service.showRecentHistory()
+              root.close()
             }
+            onActiveFocusChanged: if (activeFocus) root.revealControl(this)
+          }
+          Button {
+            Layout.fillWidth: true
+            text: "Dismiss all"
+            bordered: true
+            focusable: true
+            foreground: root.foreground
+            fontFamily: root.fontFamily
+            onClicked: if (root.service) root.service.dismissAll()
+            onActiveFocusChanged: if (activeFocus) root.revealControl(this)
           }
         }
       }
     }
   }
+
 }

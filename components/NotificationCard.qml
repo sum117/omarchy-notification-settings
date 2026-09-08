@@ -178,7 +178,7 @@ BorderSurface {
             visible: root.app.length > 0 && root.app.toLowerCase() !== root.summary.toLowerCase()
             text: root.app
             textFormat: Text.PlainText
-            font.family: "Liberation Sans"
+            font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             font.bold: true
             color: root.dimColor
@@ -189,7 +189,7 @@ BorderSurface {
             visible: (root.app.length > 0 && root.app.toLowerCase() !== root.summary.toLowerCase()) && root.channel.length > 0
             text: "·"
             textFormat: Text.PlainText
-            font.family: "Liberation Sans"
+            font.family: root.fontFamily
             font.pixelSize: Style.font.caption
             color: root.dimColor
           }
@@ -208,7 +208,7 @@ BorderSurface {
               anchors.centerIn: parent
               text: root.channel
               textFormat: Text.PlainText
-              font.family: "Liberation Sans"
+              font.family: root.fontFamily
               font.pixelSize: Style.font.caption
               font.bold: true
               color: Color.accent
@@ -222,7 +222,7 @@ BorderSurface {
           visible: root.summary.length > 0
           text: root.summary
           textFormat: Text.PlainText
-          font.family: "Liberation Sans"
+          font.family: root.fontFamily
           color: Color.notifications.text
           font.pixelSize: Style.font.title
           font.bold: true
@@ -237,7 +237,7 @@ BorderSurface {
           visible: root.sanitizedBody.length > 0
           text: root.sanitizedBody
           textFormat: Text.PlainText
-          font.family: "Liberation Sans"
+          font.family: root.fontFamily
           color: root.bodyColor
           font.pixelSize: Style.font.title
           wrapMode: Text.WordWrap
@@ -280,7 +280,7 @@ BorderSurface {
           Text {
             text: root.copiedOtp ? "Copied to Clipboard!" : ("Copy Code: " + root.otpDisplay)
             textFormat: Text.PlainText
-            font.family: "Liberation Sans"
+            font.family: root.fontFamily
             font.pixelSize: Style.font.body
             font.bold: true
             color: otpArea.containsMouse ? Color.background : Color.notifications.text
