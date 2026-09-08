@@ -1,5 +1,13 @@
 # 🔔 Omarchy Notifications Settings
 
+This fork fixes settings-panel dismissal (click the bell again, press Escape,
+or click outside) and makes notification badges and OTP buttons follow
+Omarchy's corner setting, including square corners. It also removes tracked
+Python bytecode and ignores generated Python caches.
+
+The plugin ID remains `andrewscofield.notifications-settings` for compatibility
+with existing installations. Upstream: [andrewscofield/omarchy-notification-settings](https://github.com/andrewscofield/omarchy-notification-settings).
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Omarchy Quattro](https://img.shields.io/badge/Omarchy-Quattro-blue)](https://omarchy.com)
 
@@ -85,7 +93,7 @@ Because only one service can own the `org.freedesktop.Notifications` DBus sessio
 Clone this repository into your Omarchy plugins directory:
 
 ```bash
-git clone https://github.com/andrewscofield/omarchy-notification-settings.git ~/.config/omarchy/plugins/andrewscofield.notifications-settings
+git clone https://github.com/sum117/omarchy-notification-settings.git ~/.config/omarchy/plugins/andrewscofield.notifications-settings
 ```
 
 ### 2. Enable in Shell Configuration
@@ -147,6 +155,12 @@ If you ever wish to switch back to the default Omarchy notification daemon:
    ```
 
 ---
+
+## Development checks
+
+Run the panel behavior regression tests with `node tests/panel.test.cjs`.
+These exercise the widget handlers and the panel's owner-delegating close
+contract without starting the desktop shell.
 
 ## 📄 License
 

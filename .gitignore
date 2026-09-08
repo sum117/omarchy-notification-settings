@@ -3,3 +3,5 @@
 *~
 *.bak
 .system_generated/
+__pycache__/
+*.py[cod]

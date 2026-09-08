@@ -198,7 +198,7 @@ BorderSurface {
             visible: root.channel.length > 0
             Layout.preferredHeight: Style.space(18)
             Layout.preferredWidth: channelLabel.implicitWidth + Style.space(12)
-            radius: Style.space(4)
+            radius: Math.min(root.cornerRadius, Style.space(4))
             color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.18)
             border.color: Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.45)
             border.width: 1
@@ -260,7 +260,7 @@ BorderSurface {
       Rectangle {
         id: otpButtonRect
         anchors.fill: parent
-        radius: Style.space(6)
+        radius: Math.min(root.cornerRadius, Style.space(6))
         color: otpArea.containsPress ? Qt.darker(Color.accent, 1.3) : (otpArea.containsMouse ? Color.accent : Qt.rgba(Color.accent.r, Color.accent.g, Color.accent.b, 0.16))
         border.color: Color.accent
         border.width: 1

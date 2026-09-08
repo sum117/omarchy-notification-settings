@@ -58,7 +58,8 @@ BarWidget {
   }
 
   function close() {
-    if (panelLoader.item) panelLoader.item.close()
+    // KeyboardPanel.close() delegates to its owner, so finish the close here.
+    if (panelLoader.item) panelLoader.item.open = false
   }
 
   Loader {
