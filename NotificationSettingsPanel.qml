@@ -9,7 +9,7 @@ KeyboardPanel {
   id: root
 
   readonly property var service: bar && bar.shell
-    ? bar.shell.serviceFor("andrewscofield.notifications-settings") : null
+    ? bar.shell.serviceFor("sum117.notifications-settings") : null
   readonly property bool dnd: service ? service.doNotDisturb : false
   readonly property color foreground: bar ? bar.foreground : Color.foreground
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "id": "andrewscofield.notifications-settings",
+  "id": "sum117.notifications-settings",
   "name": "Omarchy Notifications Settings",
-  "version": "1.0.0",
-  "author": "Andrew Scofield",
+  "version": "1.1.0",
+  "author": "sum117",
   "license": "MIT",
   "description": "Enhanced notification daemon and control panel with 6 screen positions, 1-click 2FA/OTP code copy, smart channel grouping, and live preview.",
   "kinds": [

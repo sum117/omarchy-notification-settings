@@ -45,5 +45,5 @@ surfaces, sender-icon fallbacks and persistence, interface glyph choices,
 regression tests, repository cleanup, and revised documentation.
 
 These changes extend the upstream work and are distributed under the same MIT
-license. The retained plugin ID supports existing installations; it does not
-indicate that Andrew maintains this fork.
+license. This fork uses the plugin ID `sum117.notifications-settings` and is
+maintained independently of Andrew's original plugin.

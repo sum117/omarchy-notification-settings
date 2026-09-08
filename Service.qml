@@ -37,7 +37,7 @@ Item {
   // originals don't outlive the notification (see persistablePopup). Each
   // copy lives and dies with the JSON file whose stem it carries.
   readonly property string imagesDir: popupStateDir + "images/"
-  readonly property string storageScript: home + "/.config/omarchy/plugins/andrewscofield.notifications-settings/scripts/storage.sh"
+  readonly property string storageScript: home + "/.config/omarchy/plugins/sum117.notifications-settings/scripts/storage.sh"
   readonly property int maxActivePopups: 20
   // Corner radius is shared with the menu and shell panels.
   // It mirrors Hyprland's current decoration:rounding value.
@@ -696,7 +696,7 @@ Item {
     openHistorySerial++
     refreshHistory()
     if (shell && typeof shell.summon === "function")
-      shell.summon("andrewscofield.notifications-settings", "{}")
+      shell.summon("sum117.notifications-settings", "{}")
     return "ok"
   }
 

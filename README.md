@@ -6,8 +6,8 @@ and configurable toast placement.
 
 This is [sum117's fork](https://github.com/sum117/omarchy-notification-settings)
 of [Andrew Scofield's plugin](https://github.com/andrewscofield/omarchy-notification-settings),
-which builds on Omarchy's notification service. The plugin ID remains
-`andrewscofield.notifications-settings` for compatibility with existing installs.
+which builds on Omarchy's notification service. This fork uses the plugin ID
+`sum117.notifications-settings`. See the migration steps below for older installs.
 
 ## Improvements in this fork
 
@@ -57,7 +57,7 @@ Quickshell configuration. Only one notification service can own the session's
 Clone the fork into the directory matching its plugin ID:
 
 ```bash
-git clone https://github.com/sum117/omarchy-notification-settings.git ~/.config/omarchy/plugins/andrewscofield.notifications-settings
+git clone https://github.com/sum117/omarchy-notification-settings.git ~/.config/omarchy/plugins/sum117.notifications-settings
 ```
 
 Merge the following entries into `~/.config/omarchy/shell.json`, preserving your
@@ -67,7 +67,7 @@ and add the bell to your preferred bar section. This example places it on the ri
 ```json
 {
   "plugins": [
-    { "id": "andrewscofield.notifications-settings" }
+    { "id": "sum117.notifications-settings" }
   ],
   "disabledPlugins": [
     "omarchy.notifications"
@@ -75,7 +75,7 @@ and add the bell to your preferred bar section. This example places it on the ri
   "bar": {
     "layout": {
       "right": [
-        { "id": "andrewscofield.notifications-settings" }
+        { "id": "sum117.notifications-settings" }
       ]
     }
   }
@@ -88,12 +88,27 @@ Restart the shell:
 omarchy restart shell
 ```
 
-For an existing installation cloned from Andrew's repository, switch its remote
-to this fork before updating:
+## Migrate an existing installation
+
+Earlier versions used `andrewscofield.notifications-settings`. To migrate, first
+save any local edits and back up `~/.config/omarchy/shell.json`. Rename the
+installation directory, then update it from this fork:
 
 ```bash
-git -C ~/.config/omarchy/plugins/andrewscofield.notifications-settings remote set-url origin https://github.com/sum117/omarchy-notification-settings.git
+mv ~/.config/omarchy/plugins/andrewscofield.notifications-settings ~/.config/omarchy/plugins/sum117.notifications-settings
+git -C ~/.config/omarchy/plugins/sum117.notifications-settings remote set-url origin https://github.com/sum117/omarchy-notification-settings.git
+git -C ~/.config/omarchy/plugins/sum117.notifications-settings pull --ff-only
 ```
+
+Use the `mv` command only if the destination directory does not already exist.
+Replace `andrewscofield.notifications-settings` with
+`sum117.notifications-settings` throughout `~/.config/omarchy/shell.json`,
+including any `plugins`, `bar.layout`, and `cloneSourceRestores` entries.
+Update custom commands that summon the old plugin ID, then run
+`omarchy restart shell`. Keep `omarchy.notifications` disabled.
+
+Settings and notification history keep their existing storage paths; no state
+migration is needed. Upstream repository links and attribution remain unchanged.
 
 ## Use
 
@@ -123,7 +138,7 @@ omarchy shell notifications showHistory
 ## Update
 
 ```bash
-git -C ~/.config/omarchy/plugins/andrewscofield.notifications-settings pull --ff-only
+git -C ~/.config/omarchy/plugins/sum117.notifications-settings pull --ff-only
 omarchy restart shell
 ```
 

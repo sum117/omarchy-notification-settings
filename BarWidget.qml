@@ -4,11 +4,11 @@ import qs.Ui
 
 BarWidget {
   id: root
-  moduleName: "andrewscofield.notifications-settings"
+  moduleName: "sum117.notifications-settings"
   readonly property bool hovered: button.tooltipHovered
 
   readonly property var service: bar && bar.shell
-    ? (bar.shell.serviceFor("andrewscofield.notifications-settings") || bar.shell.serviceFor(root.moduleName) || bar.shell.serviceFor("andrew.notifications") || bar.shell.firstPartyServiceFor("omarchy.notifications"))
+    ? (bar.shell.serviceFor("sum117.notifications-settings") || bar.shell.serviceFor(root.moduleName) || bar.shell.serviceFor("andrew.notifications") || bar.shell.firstPartyServiceFor("omarchy.notifications"))
     : null
   readonly property bool isCenter: bar && bar.layoutConfig && bar.layoutConfig.center
     ? bar.layoutConfig.center.some(function(entry) {
