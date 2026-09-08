@@ -30,7 +30,8 @@ BarWidget {
     id: button
     anchors.fill: parent
     bar: root.bar
-    text: root.isDnd ? "󰂛" : "󰂚"
+    // Use the same notification glyph as Omarchy's stock Dnd indicator.
+    text: "󰂛"
     tooltipText: root.isDnd ? "Notifications Muted · Right-click to unmute" : "Notification Settings"
     useActiveColor: root.isDnd
     activeColor: Color.urgent
